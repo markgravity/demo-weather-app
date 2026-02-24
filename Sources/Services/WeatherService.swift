@@ -13,6 +13,12 @@ import WeatherKit
 
 final class LiveWeatherService: WeatherServiceProtocol {
     private let service = WeatherKit.WeatherService.shared
+    private let cache = NSCache<NSString, CachedWeather>()
+
+    init() {
+        cache.countLimit = 50
+        cache.totalCostLimit = 10 * 1024 * 1024 // 10 MB
+    }
 
     func currentWeather(for location: CLLocation) async throws -> CurrentWeather {
         let weather = try await service.weather(for: location)
