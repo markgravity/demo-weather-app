@@ -1,27 +1,35 @@
 import Foundation
 @preconcurrency import CoreLocation
 
-final class LocationService: NSObject, CLLocationManagerDelegate {
-    private let manager = CLLocationManager()
-    private var continuation: CheckedContinuation<CLLocation, Error>?
-
+final class LocationService: Sendable {
     func requestLocation() async throws -> CLLocation {
-        manager.delegate = self
-        manager.requestWhenInUseAuthorization()
-        return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
-            manager.requestLocation()
+        let updates = CLLocationUpdate.liveUpdates()
+        for try await update in updates {
+            if let location = update.location {
+                return location
+            }
         }
+        throw LocationError.unavailable
     }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.first else { return }
-        continuation?.resume(returning: location)
-        continuation = nil
+    func requestAuthorization() async -> CLAuthorizationStatus {
+        let manager = CLLocationManager()
+        if manager.authorizationStatus == .notDetermined {
+            manager.requestWhenInUseAuthorization()
+            try? await Task.sleep(for: .seconds(0.5))
+        }
+        return manager.authorizationStatus
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        continuation?.resume(throwing: error)
-        continuation = nil
+    enum LocationError: LocalizedError {
+        case unavailable
+        case unauthorized
+
+        var errorDescription: String? {
+            switch self {
+            case .unavailable: "Location data is currently unavailable."
+            case .unauthorized: "Location access is required. Please enable it in Settings."
+            }
+        }
     }
 }
