@@ -1,6 +1,5 @@
 import Foundation
-import WeatherKit
-import CoreLocation
+@preconcurrency import CoreLocation
 
 protocol WeatherServiceProtocol: Sendable {
     func currentWeather(for location: CLLocation) async throws -> CurrentWeather
@@ -8,6 +7,9 @@ protocol WeatherServiceProtocol: Sendable {
     func dailyForecast(for location: CLLocation) async throws -> [DailyForecast]
     func alerts(for location: CLLocation) async throws -> [WeatherAlert]
 }
+
+#if canImport(WeatherKit)
+import WeatherKit
 
 final class LiveWeatherService: WeatherServiceProtocol {
     private let service = WeatherKit.WeatherService.shared
@@ -71,4 +73,49 @@ final class LiveWeatherService: WeatherServiceProtocol {
             )
         } ?? []
     }
+}
+#endif
+
+final class MockWeatherService: WeatherServiceProtocol {
+    func currentWeather(for location: CLLocation) async throws -> CurrentWeather {
+        CurrentWeather(
+            temperature: .init(value: 72, unit: .fahrenheit),
+            feelsLike: .init(value: 70, unit: .fahrenheit),
+            condition: "Partly Cloudy",
+            symbolName: "cloud.sun.fill",
+            humidity: 0.65,
+            windSpeed: .init(value: 10, unit: .milesPerHour),
+            uvIndex: 5,
+            visibility: .init(value: 10, unit: .miles),
+            pressure: .init(value: 1013, unit: .hectopascals)
+        )
+    }
+
+    func hourlyForecast(for location: CLLocation) async throws -> [HourlyForecast] {
+        (0..<24).map { i in
+            HourlyForecast(
+                id: UUID(),
+                time: Calendar.current.date(byAdding: .hour, value: i, to: .now) ?? .now,
+                temperature: .init(value: Double(72 - i % 10), unit: .fahrenheit),
+                symbolName: "cloud.sun.fill",
+                precipitationChance: 0.1
+            )
+        }
+    }
+
+    func dailyForecast(for location: CLLocation) async throws -> [DailyForecast] {
+        (0..<10).map { i in
+            DailyForecast(
+                id: UUID(),
+                date: Calendar.current.date(byAdding: .day, value: i, to: .now) ?? .now,
+                high: .init(value: Double(78 + i), unit: .fahrenheit),
+                low: .init(value: Double(58 + i), unit: .fahrenheit),
+                symbolName: "sun.max.fill",
+                precipitationChance: 0.05,
+                range: 55...90
+            )
+        }
+    }
+
+    func alerts(for location: CLLocation) async throws -> [WeatherAlert] { [] }
 }

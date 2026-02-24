@@ -1,8 +1,9 @@
 import Foundation
-import CoreLocation
+@preconcurrency import CoreLocation
 
-final class LocationService: NSObject, CLLocationManagerDelegate, Sendable {
+final class LocationService: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<CLLocation, Error>?
 
     func requestLocation() async throws -> CLLocation {
         manager.delegate = self
@@ -12,8 +13,6 @@ final class LocationService: NSObject, CLLocationManagerDelegate, Sendable {
             manager.requestLocation()
         }
     }
-
-    private var continuation: CheckedContinuation<CLLocation, Error>?
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.first else { return }

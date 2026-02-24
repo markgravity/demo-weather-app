@@ -1,5 +1,5 @@
 import ComposableArchitecture
-import CoreLocation
+@preconcurrency import CoreLocation
 
 @Reducer
 struct AppFeature {
@@ -16,60 +16,33 @@ struct AppFeature {
         var error: String?
     }
 
-    enum Action {
+    enum Action: Equatable {
         case onAppear
         case settingsTapped
-        case weatherResponse(Result<WeatherData, Error>)
-        case locationUpdated(CLLocation)
-        case alertsReceived([WeatherAlert])
+        case weatherLoaded(CurrentWeather?, [HourlyForecast], [DailyForecast])
+        case weatherFailed(String)
     }
-
-    @Dependency(\.weatherService) var weatherService
-    @Dependency(\.locationService) var locationService
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
             case .onAppear:
                 state.isLoading = true
-                return .run { send in
-                    let location = try await locationService.requestLocation()
-                    await send(.locationUpdated(location))
-                }
+                return .none
 
             case .settingsTapped:
                 return .none
 
-            case let .locationUpdated(location):
-                return .run { send in
-                    async let current = weatherService.currentWeather(for: location)
-                    async let hourly = weatherService.hourlyForecast(for: location)
-                    async let daily = weatherService.dailyForecast(for: location)
-                    async let alerts = weatherService.alerts(for: location)
-                    let data = try await WeatherData(
-                        current: current,
-                        hourly: hourly,
-                        daily: daily,
-                        alerts: alerts
-                    )
-                    await send(.weatherResponse(.success(data)))
-                }
-
-            case let .weatherResponse(.success(data)):
+            case let .weatherLoaded(current, hourly, daily):
                 state.isLoading = false
-                state.currentWeather = data.current
-                state.hourlyForecast = data.hourly
-                state.dailyForecast = data.daily
-                state.alerts = data.alerts
+                state.currentWeather = current
+                state.hourlyForecast = hourly
+                state.dailyForecast = daily
                 return .none
 
-            case let .weatherResponse(.failure(error)):
+            case let .weatherFailed(message):
                 state.isLoading = false
-                state.error = error.localizedDescription
-                return .none
-
-            case let .alertsReceived(alerts):
-                state.alerts = alerts
+                state.error = message
                 return .none
             }
         }
@@ -83,7 +56,7 @@ struct WeatherData: Equatable, Sendable {
     let alerts: [WeatherAlert]
 }
 
-struct WeatherDetail: Identifiable, Equatable {
+struct WeatherDetail: Identifiable, Equatable, Sendable {
     let id: UUID
     let title: String
     let value: String
