@@ -11,8 +11,9 @@ let package = Package(
         .library(name: "AuroraWeather", targets: ["AuroraWeather"])
     ],
     dependencies: [
-        .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.15.0"),
-        .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.0")
+        .package(url: "https://github.com/pointfreeco/swift-composable-architecture", from: "1.17.0"),
+        .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.1"),
+        .package(url: "https://github.com/apple/swift-collections", from: "1.1.0")
     ],
     targets: [
         .target(
